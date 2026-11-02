@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1c1b18">
+<title>ShelfLife — Expiration Tracker</title>
+<link rel="preconnect" href="https://api.fontshare.com">
+<link href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+:root{
+  --text-xs:clamp(.75rem,.7rem + .25vw,.875rem);
+  --text-sm:clamp(.875rem,.8rem + .35vw,1rem);
+  --text-base:clamp(1rem,.95rem + .25vw,1.125rem);
+  --text-lg:clamp(1.125rem,1rem + .75vw,1.5rem);
+  --text-xl:clamp(1.5rem,1.2rem + 1.25vw,2.25rem);
+  --bg:#f4f2ec; --surface:#fffdf8; --ink:#1c1b18; --muted:#6b675d; --line:#dedad0;
+  --accent:#1f5f4a; --accent-ink:#fff;
+  --red:#b3261e; --red-bg:#fbe9e7; --amber:#9a5b00; --amber-bg:#fff1d6;
+  --yellow:#6f6400; --yellow-bg:#f7f3cf; --green:#2e6b3a; --green-bg:#e5f2e3;
+  --r:10px; --mono:'JetBrains Mono',ui-monospace,monospace;
+}
+*{box-sizing:border-box;margin:0}
+html,body{background:var(--bg);color:var(--ink);font-family:'General Sans',system-ui,sans-serif;font-size:var(--text-base);-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+.wrap{max-width:960px;margin:0 auto;padding:16px 16px 120px}
+header.top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0 16px}
+.brand{display:flex;align-items:baseline;gap:10px}
+.brand h1{font-size:var(--text-xl);font-weight:700;letter-spacing:-.02em}
+.brand span{font-family:var(--mono);font-size:var(--text-xs);color:var(--muted)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--line);background:var(--surface);border-radius:var(--r);padding:10px 14px;font-size:var(--text-sm);font-weight:600;min-height:44px}
+.btn:hover{border-color:var(--ink)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.primary:hover{filter:brightness(1.1)}
+.btn.danger{color:var(--red)}
+.btn.ghost{background:transparent;border-color:transparent}
+.btn:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
+.stat{border:1px solid var(--line);background:var(--surface);border-radius:var(--r);padding:12px;text-align:left;min-height:auto}
+.stat b{display:block;font-family:var(--mono);font-size:var(--text-xl);font-weight:600;line-height:1.1}
+.stat small{font-size:var(--text-xs);color:var(--muted);font-weight:500}
+.stat.expired b{color:var(--red)} .stat.week b{color:var(--amber)} .stat.month b{color:var(--yellow)} .stat.good b{color:var(--green)}
+.stat[aria-pressed=true]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.toolbar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.toolbar input,.toolbar select{border:1px solid var(--line);background:var(--surface);border-radius:var(--r);padding:10px 12px;min-height:44px;font-size:var(--text-sm)}
+.toolbar input{flex:1;min-width:180px}
+.list{display:flex;flex-direction:column;gap:8px}
+.item{display:grid;grid-template-columns:56px 1fr auto;gap:12px;align-items:center;background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--green);border-radius:var(--r);padding:10px 12px}
+.item.expired{border-left-color:var(--red)} .item.week{border-left-color:var(--amber)} .item.month{border-left-color:#c9b800}
+.thumb{width:56px;height:56px;border-radius:8px;background:var(--bg);object-fit:contain;display:grid;place-items:center;color:var(--muted);font-family:var(--mono);font-size:var(--text-xs);overflow:hidden}
+.item h3{font-size:var(--text-base);font-weight:600;line-height:1.25;overflow-wrap:anywhere}
+.meta{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:var(--text-xs);color:var(--muted);margin-top:2px}
+.meta .code{font-family:var(--mono)}
+.right{text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.badge{font-family:var(--mono);font-size:var(--text-xs);font-weight:600;padding:3px 8px;border-radius:999px;white-space:nowrap}
+.badge.expired{background:var(--red-bg);color:var(--red)} .badge.week{background:var(--amber-bg);color:var(--amber)}
+.badge.month{background:var(--yellow-bg);color:var(--yellow)} .badge.good{background:var(--green-bg);color:var(--green)}
+.date{white-space:nowrap;font-family:var(--mono);font-size:var(--text-xs);color:var(--muted)}
+.iconbtns{display:flex;gap:4px}
+.iconbtns button{border:1px solid var(--line);background:transparent;border-radius:8px;padding:6px 10px;font-size:var(--text-xs);font-weight:600;min-height:36px}
+.iconbtns button:hover{border-color:var(--ink)}
+.empty{text-align:center;padding:48px 16px;border:1.5px dashed var(--line);border-radius:var(--r);color:var(--muted)}
+.empty h2{font-size:var(--text-lg);color:var(--ink);margin-bottom:6px}
+.fab{position:fixed;left:50%;transform:translateX(-50%);bottom:max(20px,env(safe-area-inset-bottom));z-index:20;box-shadow:0 8px 24px rgba(0,0,0,.18);padding:14px 26px;font-size:var(--text-base);border-radius:999px;min-height:56px}
+.notice{font-size:var(--text-xs);background:var(--amber-bg);color:var(--amber);padding:8px 12px;border-radius:8px;margin-bottom:12px}
+/* sheet */
+.sheet-bg{position:fixed;inset:0;background:rgba(20,19,16,.55);z-index:40;display:none;align-items:flex-end;justify-content:center}
+.sheet-bg.open{display:flex}
+.sheet{background:var(--surface);width:100%;max-width:560px;max-height:94vh;overflow:auto;border-radius:16px 16px 0 0;padding:18px 18px calc(18px + env(safe-area-inset-bottom))}
+@media(min-width:700px){.sheet-bg{align-items:center}.sheet{border-radius:16px}}
+.sheet-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.sheet-head h2{font-size:var(--text-lg)}
+#reader{width:100%;border-radius:var(--r);overflow:hidden;background:#000;min-height:220px;position:relative}
+#reader video{width:100%!important;object-fit:cover}
+.scan-actions{display:flex;gap:8px;margin:10px 0 4px;flex-wrap:wrap}
+.scan-actions .btn{flex:1}
+.hint{font-size:var(--text-xs);color:var(--muted);margin-top:6px}
+.err{font-size:var(--text-xs);color:var(--red);margin-top:6px}
+form .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+label{display:block;font-size:var(--text-xs);font-weight:600;color:var(--muted);margin:12px 0 4px;text-transform:uppercase;letter-spacing:.04em}
+form input,form select{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:10px 12px;min-height:44px;font-size:var(--text-base)}
+.code-input{font-family:var(--mono)}
+.lookup{display:flex;gap:10px;align-items:center;margin-top:10px;padding:10px;border-radius:8px;background:var(--bg);font-size:var(--text-sm);min-height:56px}
+.lookup img{width:44px;height:44px;object-fit:contain;border-radius:6px;background:#fff}
+.quick{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.quick button{border:1px solid var(--line);background:transparent;border-radius:999px;padding:4px 10px;font-size:var(--text-xs);font-weight:600;min-height:32px}
+.form-actions{display:flex;gap:8px;margin-top:18px}
+.form-actions .btn{flex:1}
+.toast{position:fixed;top:16px;left:50%;transform:translateX(-50%) translateY(-300%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:999px;font-size:var(--text-sm);z-index:60;transition:transform .25s ease}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.settings-grid{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+@media(max-width:560px){
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .item{grid-template-columns:44px 1fr;}
+  .thumb{width:44px;height:44px}
+  .right{grid-column:1/-1;flex-direction:row;justify-content:space-between;align-items:center}
+  .head-actions .label{display:none}
+  .right .iconbtns{margin-left:auto}
+  .right{flex-wrap:wrap;gap:6px 10px}
+  .toolbar input{flex-basis:100%}
+  .toolbar select{flex:1}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand"><h1>ShelfLife</h1><span>expiry tracker</span></div>
+    <div class="head-actions" style="display:flex;gap:6px">
+      <button class="btn" id="exportBtn" title="Export CSV"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg> <span class="label">Export</span></button>
+      <button class="btn" id="settingsBtn" title="Settings"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg> <span class="label">Settings</span></button>
+    </div>
+  </header>
+
+  <div id="storageNotice" class="notice" hidden>This browser is blocking storage (private mode?), so items won’t be saved after you close the app.</div>
+
+  <section class="stats" aria-label="Summary">
+    <button class="stat expired" data-filter="expired" aria-pressed="false"><b id="cExpired">0</b><small>Expired</small></button>
+    <button class="stat week" data-filter="week" aria-pressed="false"><b id="cWeek">0</b><small id="lWeek">≤ 7 days</small></button>
+    <button class="stat month" data-filter="month" aria-pressed="false"><b id="cMonth">0</b><small id="lMonth">≤ 30 days</small></button>
+    <button class="stat good" data-filter="good" aria-pressed="false"><b id="cGood">0</b><small>Good</small></button>
+  </section>
+
+  <div class="toolbar">
+    <label class="sr" for="search">Search</label>
+    <input id="search" type="search" placeholder="Search name, barcode, location, lot…">
+    <label class="sr" for="locFilter">Location</label>
+    <select id="locFilter"><option value="">All locations</option></select>
+    <label class="sr" for="sort">Sort</label>
+    <select id="sort">
+      <option value="exp">Soonest expiring</option>
+      <option value="name">Name A–Z</option>
+      <option value="added">Recently added</option>
+    </select>
+  </div>
+
+  <div id="list" class="list" aria-live="polite"></div>
+</div>
+
+<button class="btn primary fab" id="scanBtn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 8v8M10 8v8M13 8v8M17 8v8"/></svg> Scan item</button>
+
+<!-- Scan / add sheet -->
+<div class="sheet-bg" id="addSheet" role="dialog" aria-modal="true" aria-labelledby="addTitle">
+  <div class="sheet">
+    <div class="sheet-head"><h2 id="addTitle">Scan barcode</h2><button class="btn ghost" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+    <div id="scanArea">
+      <div id="reader"></div>
+      <div class="scan-actions">
+        <button class="btn" id="photoBtn" type="button"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Scan from photo</button>
+        <button class="btn" id="manualBtn" type="button"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg> Type barcode</button>
+      </div>
+      <input type="file" id="photoInput" accept="image/*" capture="environment" hidden>
+      <div id="scanMsg" class="hint">Point the camera at the product barcode. USB/Bluetooth scanners also work — just scan into the barcode field.</div>
+    </div>
+
+    <form id="itemForm" autocomplete="off">
+      <input type="hidden" id="fId">
+      <label for="fCode">Barcode</label>
+      <input id="fCode" class="code-input" inputmode="numeric" placeholder="e.g. 012345678905">
+      <div id="lookup" class="lookup" hidden></div>
+      <label for="fName">Product name</label>
+      <input id="fName" required placeholder="Product name">
+      <label for="fExp">Expiration date</label>
+      <input id="fExp" type="date" required>
+      <div class="quick" id="quickDates">
+        <button type="button" data-days="3">+3 days</button><button type="button" data-days="7">+1 wk</button>
+        <button type="button" data-days="30">+1 mo</button><button type="button" data-days="90">+3 mo</button>
+        <button type="button" data-days="180">+6 mo</button><button type="button" data-days="365">+1 yr</button>
+      </div>
+      <div class="row">
+        <div><label for="fQty">Quantity</label><input id="fQty" type="number" min="1" value="1"></div>
+        <div><label for="fLoc">Location</label><input id="fLoc" list="locList" placeholder="Shelf A, Cooler…"><datalist id="locList"></datalist></div>
+      </div>
+      <label for="fLot">Lot / batch (optional)</label>
+      <input id="fLot" placeholder="Lot number">
+      <div class="form-actions">
+        <button type="button" class="btn" data-close>Cancel</button>
+        <button type="submit" class="btn" id="saveNextBtn" data-next="1">Save &amp; scan next</button>
+        <button type="submit" class="btn primary" id="saveBtn">Save item</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Settings sheet -->
+<div class="sheet-bg" id="setSheet" role="dialog" aria-modal="true" aria-labelledby="setTitle">
+  <div class="sheet">
+    <div class="sheet-head"><h2 id="setTitle">Settings</h2><button class="btn ghost" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+    <div class="row" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div><label for="sWarn">"Urgent" window (days)</label><input id="sWarn" type="number" min="1" style="width:100%;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:10px;min-height:44px"></div>
+      <div><label for="sSoon">"Soon" window (days)</label><input id="sSoon" type="number" min="1" style="width:100%;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:10px;min-height:44px"></div>
+    </div>
+    <div class="settings-grid">
+      <label style="margin-top:16px">Data</label>
+      <button class="btn" id="exportBtn2"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg> Export inventory (CSV)</button>
+      <button class="btn" id="importBtn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5M5 21h14"/></svg> Import CSV</button>
+      <input type="file" id="importInput" accept=".csv,text/csv" hidden>
+      <button class="btn" id="notifyBtn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/></svg> Enable expiry alerts on this device</button>
+      <button class="btn danger" id="clearExpired">Remove all expired items</button>
+    </div>
+    <p class="hint" style="margin-top:12px">Product names and photos are looked up from Open Food Facts when available. Names you enter are remembered for the next scan of the same barcode.</p>
+    <div class="form-actions"><button class="btn primary" id="saveSettings">Done</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(() => {
+  // ---------- storage (on this device) ----------
+  const mem = {};
+  let ls = null; try { ls = window.localStorage; ls.setItem('__t','1'); ls.removeItem('__t'); } catch { ls = null; }
+  const save = (k, v) => { mem[k] = v; try { ls && ls.setItem(k, JSON.stringify(v)); } catch {} };
+  const store = { getItem: k => mem[k] === undefined ? null : JSON.stringify(mem[k]), setItem: (k, v) => save(k, JSON.parse(JSON.stringify(v))) };
+  let items = [], catalog = {}, settings = { warn: 7, soon: 30 };
+  let filter = '';
+  async function boot() {
+    if (ls) { for (const k of ['sl_items','sl_catalog','sl_settings','sl_lastloc','sl_notified']) { try { const v = ls.getItem(k); if (v !== null) mem[k] = JSON.parse(v); } catch {} } }
+    else $('#storageNotice').hidden = false;
+    items = mem.sl_items || []; catalog = mem.sl_catalog || {}; settings = Object.assign({ warn: 7, soon: 30 }, mem.sl_settings || {});
+    render(); notify();
+  }
+
+  const $ = s => document.querySelector(s);
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const toast = msg => { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2200); };
+
+  // ---------- date helpers ----------
+  const today = () => { const d = new Date(); d.setHours(0,0,0,0); return d; };
+  const parseDate = s => { const [y,m,d] = s.split('-').map(Number); return new Date(y, m-1, d); };
+  const iso = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const daysLeft = s => Math.round((parseDate(s) - today()) / 86400000);
+  const status = n => n < 0 ? 'expired' : n <= settings.warn ? 'week' : n <= settings.soon ? 'month' : 'good';
+  const label = n => n < 0 ? `Expired ${-n}d ago` : n === 0 ? 'Expires today' : n === 1 ? 'Tomorrow' : `${n} days left`;
+  const fmt = s => parseDate(s).toLocaleDateString(undefined, { month:'short', day:'numeric', year:'numeric' });
+
+  // ---------- render ----------
+  function render() {
+    const counts = { expired:0, week:0, month:0, good:0 };
+    items.forEach(i => counts[status(daysLeft(i.exp))]++);
+    $('#cExpired').textContent = counts.expired; $('#cWeek').textContent = counts.week;
+    $('#cMonth').textContent = counts.month; $('#cGood').textContent = counts.good;
+    $('#lWeek').textContent = `≤ ${settings.warn} days`; $('#lMonth').textContent = `≤ ${settings.soon} days`;
+    document.querySelectorAll('.stat').forEach(b => b.setAttribute('aria-pressed', b.dataset.filter === filter));
+
+    const locs = [...new Set(items.map(i => i.loc).filter(Boolean))].sort();
+    const curLoc = $('#locFilter').value;
+    $('#locFilter').innerHTML = '<option value="">All locations</option>' + locs.map(l => `<option ${l===curLoc?'selected':''}>${esc(l)}</option>`).join('');
+    $('#locList').innerHTML = locs.map(l => `<option value="${esc(l)}">`).join('');
+
+    const q = $('#search').value.trim().toLowerCase();
+    const loc = $('#locFilter').value;
+    let rows = items.filter(i => (!filter || status(daysLeft(i.exp)) === filter) && (!loc || i.loc === loc) &&
+      (!q || [i.name, i.code, i.loc, i.lot].some(v => (v||'').toLowerCase().includes(q))));
+    const s = $('#sort').value;
+    rows.sort(s === 'name' ? (a,b) => a.name.localeCompare(b.name) : s === 'added' ? (a,b) => b.added - a.added : (a,b) => a.exp.localeCompare(b.exp));
+
+    const list = $('#list');
+    if (!items.length) {
+      list.innerHTML = `<div class="empty"><h2>No items yet</h2><p>Tap <b>Scan item</b> to scan a barcode and log its expiration date.</p></div>`;
+      return;
+    }
+    if (!rows.length) { list.innerHTML = `<div class="empty"><h2>Nothing matches</h2><p>Try a different search or filter.</p></div>`; return; }
+    list.innerHTML = rows.map(i => {
+      const n = daysLeft(i.exp), st = status(n);
+      const img = i.img || catalog[i.code]?.img;
+      return `<article class="item ${st}">
+        ${img ? `<img class="thumb" src="${esc(img)}" alt="" loading="lazy">` : `<div class="thumb">${esc((i.name||'?').slice(0,2).toUpperCase())}</div>`}
+        <div><h3>${esc(i.name)}</h3>
+          <div class="meta">${i.code?`<span class="code">${esc(i.code)}</span>`:''}<span>Qty ${i.qty}</span>${i.loc?`<span>${esc(i.loc)}</span>`:''}${i.lot?`<span>Lot ${esc(i.lot)}</span>`:''}</div></div>
+        <div class="right"><span class="badge ${st}">${label(n)}</span><span class="date">${fmt(i.exp)}</span>
+          <div class="iconbtns"><button data-act="edit" data-id="${i.id}">Edit</button><button data-act="use" data-id="${i.id}">${i.qty>1?'−1':'Done'}</button><button data-act="del" data-id="${i.id}" aria-label="Delete"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div></div>
+      </article>`;
+    }).join('');
+  }
+  const persist = () => { save('sl_items', items); save('sl_catalog', catalog); render(); };
+
+  // ---------- list actions ----------
+  $('#list').addEventListener('click', e => {
+    const b = e.target.closest('button[data-act]'); if (!b) return;
+    const i = items.find(x => x.id === b.dataset.id); if (!i) return;
+    if (b.dataset.act === 'edit') openSheet(i);
+    if (b.dataset.act === 'use') { if (i.qty > 1) { i.qty--; toast(`${i.name}: ${i.qty} left`); } else { items = items.filter(x => x !== i); toast('Item removed'); } persist(); }
+    if (b.dataset.act === 'del') { const prev = items.slice(); items = items.filter(x => x !== i); persist(); undoToast(prev); }
+  });
+  function undoToast(prev) {
+    const t = $('#toast'); t.innerHTML = 'Item deleted · <u style="cursor:pointer">Undo</u>'; t.classList.add('show');
+    t.onclick = () => { items = prev; persist(); t.classList.remove('show'); t.onclick = null; };
+    clearTimeout(t._h); t._h = setTimeout(() => { t.classList.remove('show'); t.onclick = null; }, 4000);
+  }
+  document.querySelectorAll('.stat').forEach(b => b.onclick = () => { filter = filter === b.dataset.filter ? '' : b.dataset.filter; render(); });
+  ['#search','#locFilter','#sort'].forEach(s => $(s).addEventListener('input', render));
+
+  // ---------- scanner ----------
+  let scanner = null, scanning = false;
+  async function startCamera() {
+    const msg = $('#scanMsg');
+    if (typeof Html5Qrcode === 'undefined') { msg.className = 'err'; msg.textContent = 'Scanner library failed to load. Type the barcode instead.'; return; }
+    try {
+      const F = Html5QrcodeSupportedFormats;
+      scanner = scanner || new Html5Qrcode('reader', { formatsToSupport: [F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E, F.CODE_128, F.CODE_39, F.ITF, F.QR_CODE, F.DATA_MATRIX], useBarCodeDetectorIfSupported: true, verbose: false });
+      await scanner.start({ facingMode: 'environment' }, { fps: 12, qrbox: (w, h) => ({ width: Math.min(w * 0.85, 360), height: Math.min(h * 0.5, 160) }) }, onScan, () => {});
+      scanning = true; msg.className = 'hint'; msg.textContent = 'Point the camera at the product barcode.';
+    } catch (err) {
+      $('#reader').style.display = 'none';
+      msg.className = 'err';
+      msg.textContent = 'Camera unavailable (' + (err?.name || 'permission blocked') + '). Use “Scan from photo” or type the barcode.';
+    }
+  }
+  async function stopCamera() { if (scanner && scanning) { try { await scanner.stop(); } catch {} scanning = false; } }
+  function onScan(code) {
+    if (navigator.vibrate) navigator.vibrate(80);
+    stopCamera(); $('#scanArea').hidden = true;
+    $('#fCode').value = code; handleCode(code); $('#fExp').focus();
+  }
+  $('#photoBtn').onclick = () => $('#photoInput').click();
+  $('#photoInput').onchange = async e => {
+    const f = e.target.files[0]; if (!f) return;
+    await stopCamera();
+    try { const s = scanner || new Html5Qrcode('reader'); scanner = s; const code = await s.scanFile(f, false); onScan(code); }
+    catch { $('#scanMsg').className = 'err'; $('#scanMsg').textContent = 'No barcode found in that photo. Try again closer, or type it.'; }
+    e.target.value = '';
+  };
+  $('#manualBtn').onclick = () => { stopCamera(); $('#scanArea').hidden = true; $('#fCode').focus(); };
+
+  // ---------- product lookup ----------
+  let lookupSeq = 0;
+  async function handleCode(code) {
+    code = code.trim(); const box = $('#lookup'); if (!code) { box.hidden = true; return; }
+    const existing = items.filter(i => i.code === code);
+    const known = catalog[code];
+    if (known) { if (!$('#fName').value) $('#fName').value = known.name; showLookup(known, existing); return; }
+    if (!/^\d{8,14}$/.test(code)) { box.hidden = true; return; }
+    const seq = ++lookupSeq; box.hidden = false; box.innerHTML = '<span class="hint">Looking up product…</span>';
+    try {
+      const r = await fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=product_name,brands,image_front_small_url,quantity`);
+      const j = await r.json(); if (seq !== lookupSeq) return;
+      if (j.status === 1 && j.product?.product_name) {
+        const p = j.product; const br = p.brands?.split(',')[0]?.trim(); const name = [br && !p.product_name.toLowerCase().includes(br.toLowerCase()) ? br : '', p.product_name, p.quantity].filter(Boolean).join(' · ');
+        const info = { name, img: p.image_front_small_url || '' };
+        if (!$('#fName').value) $('#fName').value = name; $('#fName').dataset.img = info.img;
+        showLookup(info, existing);
+      } else { box.innerHTML = '<span class="hint">New product — enter its name below. It will be remembered next time.</span>'; }
+    } catch { if (seq === lookupSeq) box.innerHTML = '<span class="hint">Couldn’t look up this barcode. Enter the name below.</span>'; }
+  }
+  function showLookup(info, existing) {
+    const box = $('#lookup'); box.hidden = false; $('#fName').dataset.img = info.img || '';
+    const ex = existing.length ? `<br><span class="hint">Already tracking ${existing.length} batch${existing.length>1?'es':''} · next exp ${fmt(existing.map(i=>i.exp).sort()[0])}</span>` : '';
+    box.innerHTML = `${info.img ? `<img src="${esc(info.img)}" alt="">` : ''}<div><b>${esc(info.name)}</b>${ex}</div>`;
+  }
+  let codeTimer; $('#fCode').addEventListener('input', e => { clearTimeout(codeTimer); codeTimer = setTimeout(() => handleCode(e.target.value), 400); });
+  $('#fCode').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); handleCode(e.target.value); $('#fName').value ? $('#fExp').focus() : $('#fName').focus(); } });
+
+  // ---------- sheet ----------
+  function openSheet(item) {
+    const f = $('#itemForm'); f.reset(); $('#fName').dataset.img = ''; $('#lookup').hidden = true;
+    $('#fId').value = item?.id || '';
+    $('#addTitle').textContent = item ? 'Edit item' : 'Scan barcode';
+    $('#saveBtn').textContent = item ? 'Save changes' : 'Save item'; $('#saveNextBtn').hidden = !!item;
+    if (item) { $('#fCode').value = item.code||''; $('#fName').value = item.name; $('#fExp').value = item.exp; $('#fQty').value = item.qty; $('#fLoc').value = item.loc||''; $('#fLot').value = item.lot||''; $('#fName').dataset.img = item.img||''; }
+    else { $('#fLoc').value = mem.sl_lastloc || ''; }
+    $('#scanArea').hidden = !!item; $('#reader').style.display = '';
+    $('#scanMsg').className = 'hint'; $('#scanMsg').textContent = 'Point the camera at the product barcode. USB/Bluetooth scanners also work — scan into the barcode field.';
+    $('#addSheet').classList.add('open');
+    if (!item) startCamera();
+  }
+  function closeSheets() { stopCamera(); document.querySelectorAll('.sheet-bg').forEach(s => s.classList.remove('open')); }
+  $('#scanBtn').onclick = () => openSheet();
+  document.querySelectorAll('[data-close]').forEach(b => b.onclick = closeSheets);
+  document.querySelectorAll('.sheet-bg').forEach(bg => bg.addEventListener('click', e => { if (e.target === bg) closeSheets(); }));
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheets(); });
+  $('#quickDates').onclick = e => { const d = e.target.dataset.days; if (!d) return; const t = today(); t.setDate(t.getDate() + +d); $('#fExp').value = iso(t); };
+
+  $('#itemForm').onsubmit = e => {
+    e.preventDefault();
+    const code = $('#fCode').value.trim(), name = $('#fName').value.trim(), exp = $('#fExp').value;
+    if (!name || !exp) return;
+    const data = { code, name, exp, qty: Math.max(1, +$('#fQty').value || 1), loc: $('#fLoc').value.trim(), lot: $('#fLot').value.trim(), img: $('#fName').dataset.img || '' };
+    const id = $('#fId').value;
+    if (id) Object.assign(items.find(i => i.id === id), data);
+    else items.push({ id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random(), added: Date.now(), ...data });
+    if (code) catalog[code] = { name, img: data.img };
+    save('sl_lastloc', data.loc);
+    const next = e.submitter && e.submitter.dataset.next;
+    persist(); closeSheets();
+    if (next && !id) setTimeout(() => openSheet(), 350);
+    const n = daysLeft(exp); toast(`${id ? 'Updated' : 'Added'} · ${label(n).toLowerCase()}`);
+  };
+
+  // ---------- CSV ----------
+  const csvCell = v => /[",\n]/.test(v = String(v ?? '')) ? `"${v.replace(/"/g,'""')}"` : v;
+  function exportCSV() {
+    const head = ['barcode','name','expiration','days_left','status','quantity','location','lot'];
+    const rows = items.slice().sort((a,b)=>a.exp.localeCompare(b.exp)).map(i => { const n = daysLeft(i.exp); return [i.code,i.name,i.exp,n,status(n),i.qty,i.loc,i.lot]; });
+    const csv = [head, ...rows].map(r => r.map(csvCell).join(',')).join('\n');
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    a.download = `shelflife-inventory-${iso(today())}.csv`; document.body.appendChild(a); a.click(); a.remove();
+    toast('CSV exported');
+  }
+  function parseCSV(text) {
+    const rows = []; let row = [], cell = '', q = false;
+    for (let i = 0; i < text.length; i++) { const c = text[i];
+      if (q) { if (c === '"' && text[i+1] === '"') { cell += '"'; i++; } else if (c === '"') q = false; else cell += c; }
+      else if (c === '"') q = true; else if (c === ',') { row.push(cell); cell = ''; }
+      else if (c === '\n' || c === '\r') { if (c === '\r' && text[i+1] === '\n') i++; row.push(cell); rows.push(row); row = []; cell = ''; }
+      else cell += c; }
+    if (cell || row.length) { row.push(cell); rows.push(row); }
+    return rows.filter(r => r.some(Boolean));
+  }
+  $('#exportBtn').onclick = exportCSV; $('#exportBtn2').onclick = exportCSV;
+  $('#importBtn').onclick = () => $('#importInput').click();
+  $('#importInput').onchange = async e => {
+    const f = e.target.files[0]; if (!f) return;
+    const rows = parseCSV(await f.text()); const h = rows.shift().map(x => x.trim().toLowerCase());
+    const col = n => h.indexOf(n); let added = 0;
+    rows.forEach(r => { const name = r[col('name')], exp = r[col('expiration')];
+      if (!name || !/^\d{4}-\d{2}-\d{2}$/.test(exp||'')) return;
+      const code = col('barcode') >= 0 ? r[col('barcode')] : '';
+      items.push({ id: String(Date.now()) + Math.random(), added: Date.now(), code, name, exp, qty: +r[col('quantity')] || 1, loc: r[col('location')] || '', lot: r[col('lot')] || '' });
+      if (code) catalog[code] = catalog[code] || { name, img: '' }; added++; });
+    persist(); toast(`Imported ${added} item${added===1?'':'s'}`); e.target.value = '';
+  };
+
+  // ---------- settings ----------
+  $('#settingsBtn').onclick = () => { $('#sWarn').value = settings.warn; $('#sSoon').value = settings.soon; $('#setSheet').classList.add('open'); };
+  $('#saveSettings').onclick = () => {
+    const w = Math.max(1, +$('#sWarn').value || 7), s = Math.max(w + 1, +$('#sSoon').value || 30);
+    settings = { warn: w, soon: s }; save('sl_settings', settings); closeSheets(); render();
+  };
+  $('#clearExpired').onclick = () => { const prev = items.slice(); const n = items.filter(i => daysLeft(i.exp) < 0).length; if (!n) { toast('No expired items'); return; } items = items.filter(i => daysLeft(i.exp) >= 0); persist(); closeSheets(); undoToast(prev); };
+  $('#notifyBtn').onclick = async () => {
+    if (!('Notification' in window)) { toast('Alerts not supported on this browser'); return; }
+    const p = await Notification.requestPermission(); toast(p === 'granted' ? 'Alerts on — you’ll be notified when you open the app' : 'Alerts blocked'); notify();
+  };
+  function notify() {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    const key = iso(today()); if (mem.sl_notified === key) return;
+    const exp = items.filter(i => daysLeft(i.exp) < 0).length, soon = items.filter(i => { const n = daysLeft(i.exp); return n >= 0 && n <= settings.warn; }).length;
+    if (exp || soon) { try { new Notification('ShelfLife', { body: `${exp} expired · ${soon} expiring within ${settings.warn} days` }); } catch {} save('sl_notified', key); }
+  }
+
+  boot();
+})();
+</script>
+</body>
+</html>
